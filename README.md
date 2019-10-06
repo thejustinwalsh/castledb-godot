@@ -6,7 +6,7 @@ Clone this repository and copy the contents of `addons` to your own project's `a
 
 Enable the plugin in the Project Settings.
 
-Add a CastleDB file somewhere in your project hiarchy. Your CastleDB file must use the `.cdb` extension for the importer to generate code.
+Add a CastleDB file somewhere in your project hierarchy. Your CastleDB file must use the `.cdb` extension for the importer to generate code.
 
 Add the imported CastleDB file to your AutoLoad scripts in Project Settings.
 
