@@ -71,7 +71,9 @@ func import(source_file, save_path, options, r_platform_variants, r_gen_files):
 	if data.has("sheets"):
 		sheets = data["sheets"]
 		for sheet in sheets:
-			var name = sheet["name"].capitalize().replace(" ", "")
+			var name:String = sheet["name"].capitalize().replace(" ", "")
+			if name.find("@") >= 0: continue # TODO: Implement subclass list data
+			
 			var keys = []
 			code += "class %s:" % name + "\n"
 			code += Utils.gen_column_keys(name, sheet["columns"], sheet["lines"], keys, 1)
@@ -81,6 +83,8 @@ func import(source_file, save_path, options, r_platform_variants, r_gen_files):
 	
 	for sheet in sheets:
 		var name = sheet["name"].capitalize().replace(" ", "")
+		if name.find("@") >= 0: continue # TODO: Implement subclass list data
+		
 		code +=  "var %s := %s.new()" % [name.to_lower(), name] + "\n"
 	
 	var main_script = GDScript.new();
