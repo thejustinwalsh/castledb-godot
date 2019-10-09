@@ -31,7 +31,10 @@ Enjoy code completion of your static data!
  - ID
  - Bool
  - Int
+ - Float
+ - Color
  - String
+ - File
  - Tile
 
 ## Disclaimer
