@@ -1,7 +1,8 @@
-enum { CDB_ID, CDB_STRING, CDB_BOOL, CDB_INT, CDB_FLOAT, CDB_COLOR, CDB_FILE, CDB_TILE, CDB_NIL }
+enum { CDB_ID, CDB_STRING, CDB_BOOL, CDB_INT, CDB_FLOAT, CDB_ENUM, CDB_COLOR, CDB_FILE, CDB_TILE, CDB_NIL }
 
 static func get_column_type(column):
-	match column["typeStr"]:
+	var type: String = str(column["typeStr"].to_int())
+	match type:
 		"0":
 			return CDB_ID
 		"1":
@@ -12,6 +13,8 @@ static func get_column_type(column):
 			return CDB_INT
 		"4":
 			return CDB_FLOAT
+		"5":
+			return CDB_ENUM
 		"11":
 			return CDB_COLOR
 		"13":
@@ -23,29 +26,40 @@ static func get_column_type(column):
 
 static func gen_castle_types() -> String:
 	return ""
-	
+
 static func gen_column_keys(name:String, columns:Array, lines:Array, outKeys:Array, indent:int) -> String:
 	var tab = ""
 	for i in indent:
 		tab += "\t"
-		
+
 	var code = ""
 	var unique_id = ""
 	for column in columns:
 		if get_column_type(column) == CDB_ID:
 			unique_id = column["name"]
+		elif get_column_type(column) == CDB_ENUM:
+			code += tab + "enum %s {" % column["name"].capitalize().strip_edges().replacen(" ", "")
+			var type = column["typeStr"].split(":", true, 1)
+			var possible_value = type.back().split(",")
+			for i in possible_value.size():
+				if i > 0:
+					code += ", "
+				code += possible_value[i].capitalize().strip_edges().to_upper().replacen(" ", "_")
+			code += "}" + "\n"
+	code += "\n"
+
 	if unique_id != "":
 		for line in lines:
 			var id = line[unique_id]
 			outKeys.push_back(id)
 			code += tab + "const %s := \"%s\"" % [id, id] + "\n"
 	return code
-	
+
 static func gen_column_data(path:String, name:String, columns:Array, lines:Array, keys:Array, indent:int) -> String:
 	var tab = ""
 	for i in indent:
 		tab += "\t"
-	
+
 	var code = tab + "class %sRow:" % name + "\n"
 	var params = []
 	var types = []
@@ -60,7 +74,7 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				code += tab + "\t" + "var %s := false" % column["name"] + "\n"
 				params.push_back(column["name"])
 				types.push_back(type)
-			CDB_INT:
+			CDB_INT, CDB_ENUM:
 				code += tab + "\t" + "var %s := 0" % column["name"] + "\n"
 				params.push_back(column["name"])
 				types.push_back(type)
@@ -78,7 +92,7 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				types.push_back(type)
 			_:
 				pass
-	
+
 	# Init func
 	code += tab + "\t\n"
 	code += tab + "\t" + "func _init("
@@ -91,7 +105,7 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				code += "%s = \"\"" % params[i]
 			CDB_BOOL:
 				code += "%s = false" % params[i]
-			CDB_INT:
+			CDB_INT, CDB_ENUM:
 				code += "%s = 0" % params[i]
 			CDB_FLOAT:
 				code += "%s = 0.0" % params[i]
@@ -105,7 +119,7 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 	for param in params:
 		code += tab +"\t\t" + "self.%s = %s" % [param, param] + "\n"
 	code += tab + "\n"
-	
+
 	# Data
 	if lines.size() > 0:
 		code += tab + "var all = ["
@@ -122,7 +136,7 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 							code += "%s" % line[param]
 						CDB_BOOL:
 							code += "%s" % "true" if line[param] else "false"
-						CDB_INT:
+						CDB_INT, CDB_ENUM:
 							code += "%d" % line[param]
 						CDB_FLOAT:
 							code += "%f" % line[param]
@@ -141,7 +155,7 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 			if i != lines.size() - 1:
 				code += ", "
 		code += "]" + "\n"
-	
+
 	# Index
 	if keys.size() > 0:
 		code += tab + "var index = {"
@@ -151,18 +165,18 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				code += ", "
 		code += "}" + "\n"
 		code += tab + "\n"
-	
+
 	# Get function
 	code += tab + "func get(id:String) -> %sRow:" % name + "\n"
 	code += tab + "\t" + "if index.has(id):" + "\n"
 	code += tab + "\t\t" + "return all[index[id]]" + "\n"
 	code += tab + "\t" + "return null" + "\n"
-	
+
 	# Get index function
 	code += "\n"
 	code += tab + "func get_index(idx:int) -> %sRow:" % name + "\n"
 	code += tab + "\t" + "if idx < all.size():" + "\n"
 	code += tab + "\t\t" + "return all[idx]" + "\n"
 	code += tab + "\t" + "return null" + "\n"
-		
+
 	return code
