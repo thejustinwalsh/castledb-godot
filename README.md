@@ -32,6 +32,7 @@ Enjoy code completion of your static data!
  - Bool
  - Int
  - Float
+ - Enumeration
  - Color
  - String
  - File
