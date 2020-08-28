@@ -40,7 +40,7 @@ static func gen_column_keys(name:String, columns:Array, lines:Array, outKeys:Arr
 		elif get_column_type(column) == CDB_ENUM:
 			code += tab + "enum %s {" % column["name"].capitalize().strip_edges().replacen(" ", "")
 			var type = column["typeStr"].split(":", true, 1)
-			var possible_value = type.back().split(",")
+			var possible_value = type[type.size() - 1].split(",")
 			for i in possible_value.size():
 				if i > 0:
 					code += ", "
