@@ -18,7 +18,8 @@ Enjoy code completion of your static data!
 
 ## Usage Notes
 - Use lowercase names for your sheets as the type is simply generated from Capitalizing your sheet names.
-- String name constants are generated per sheet for your Unique Identifier columns
+- At least 1 column MUST be a `Unique Identifer`, typiclly the column named `id`.
+- String name constants are generated per sheet for your `Unique Identifier` columns.
 - Lookup your rows using the Unique Identifier for that sheet i.e. `Data.sheetname.get(Data.SheetName.UniqueId)`. This lookup is hashed and fast.
 - Iterate your rows using the `all` field and for better autocompletion use the `get_index()` function when retreiving a row while iterating. i.e.
     ```swift
