@@ -1,4 +1,4 @@
-enum { CDB_ID, CDB_STRING, CDB_BOOL, CDB_INT, CDB_FLOAT, CDB_ENUM, CDB_COLOR, CDB_FILE, CDB_TILE, CDB_NIL }
+enum { CDB_ID, CDB_STRING, CDB_BOOL, CDB_INT, CDB_FLOAT, CDB_ENUM, CDB_REF, CDB_COLOR, CDB_FILE, CDB_TILE, CDB_NIL }
 
 static func get_column_type(column):
 	var type: String = str(column["typeStr"].to_int())
@@ -15,6 +15,8 @@ static func get_column_type(column):
 			return CDB_FLOAT
 		"5":
 			return CDB_ENUM
+		"6":
+			return CDB_REF
 		"11":
 			return CDB_COLOR
 		"13":
@@ -90,6 +92,13 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				code += tab + "\t" + "var %s := CastleDB.Tile.new()" % column["name"] + "\n"
 				params.push_back(column["name"])
 				types.push_back(type)
+			CDB_REF:
+				var referenced_sheet_name = column["typeStr"]
+				referenced_sheet_name.erase(0, 2)
+				referenced_sheet_name = capitalize_name(referenced_sheet_name)
+				code += tab + "\t" + "var %s := \"\"" % column["name"] + "\n"
+				params.push_back(column["name"])
+				types.push_back("%s:%s" % [str(type), referenced_sheet_name])
 			_:
 				pass
 
@@ -114,6 +123,10 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 			CDB_TILE:
 				code += "%s = CastleDB.Tile.new()" % params[i]
 			_:
+				# Check for reference
+				if str(CDB_REF) in type:
+					code += "%s = \"\"" % params[i]
+					continue
 				code += "%s = \"\"" % params[i]
 	code += "):" + "\n"
 	for param in params:
@@ -150,6 +163,11 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 							var stride = int(img.get_width() / line[param]["size"])
 							code += "CastleDB.Tile.new(\"%s\", %s, %s, %s, %s)" % [ line[param]["file"], line[param]["size"], line[param]["x"], line[param]["y"], stride ]
 						_:
+							if str(CDB_REF) in type:
+								var referenced_sheet_name = type
+								referenced_sheet_name.erase(0, 2)
+								code += "%s.%s" % [referenced_sheet_name, line[param]]
+								continue
 							code += "\"%s\"" % line[param]
 			code += ")"
 			if i != lines.size() - 1:
@@ -167,7 +185,7 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 		code += tab + "\n"
 
 	# Get function
-	code += tab + "func get(id:String) -> %sRow:" % name + "\n"
+	code += tab + "func get_value(id:String) -> %sRow:" % name + "\n"
 	code += tab + "\t" + "if index.has(id):" + "\n"
 	code += tab + "\t\t" + "return all[index[id]]" + "\n"
 	code += tab + "\t" + "return null" + "\n"
@@ -180,3 +198,6 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 	code += tab + "\t" + "return null" + "\n"
 
 	return code
+
+static func capitalize_name(var name) -> String:
+	return name.capitalize().replace(" ", "")
