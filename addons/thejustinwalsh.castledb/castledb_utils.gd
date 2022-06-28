@@ -185,7 +185,7 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 		code += tab + "\n"
 
 	# Get function
-	code += tab + "func get_value(id:String) -> %sRow:" % name + "\n"
+	code += tab + "func get(id:String) -> %sRow:" % name + "\n"
 	code += tab + "\t" + "if index.has(id):" + "\n"
 	code += tab + "\t\t" + "return all[index[id]]" + "\n"
 	code += tab + "\t" + "return null" + "\n"
