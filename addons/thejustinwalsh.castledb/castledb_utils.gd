@@ -1,4 +1,4 @@
-enum { CDB_ID, CDB_STRING, CDB_BOOL, CDB_INT, CDB_FLOAT, CDB_ENUM, CDB_REF, CDB_COLOR, CDB_FILE, CDB_TILE, CDB_NIL }
+enum { CDB_ID, CDB_STRING, CDB_BOOL, CDB_INT, CDB_FLOAT, CDB_ENUM, CDB_REF, CDB_LIST, CDB_COLOR, CDB_FILE, CDB_TILE, CDB_NIL }
 
 static func get_column_type(column):
 	var type: String = str(column["typeStr"].to_int())
@@ -17,6 +17,8 @@ static func get_column_type(column):
 			return CDB_ENUM
 		"6":
 			return CDB_REF
+		"8":
+			return CDB_LIST
 		"11":
 			return CDB_COLOR
 		"13":
@@ -99,6 +101,10 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				code += tab + "\t" + "var %s := \"\"" % column["name"] + "\n"
 				params.push_back(column["name"])
 				types.push_back("%s:%s" % [str(type), referenced_sheet_name])
+			CDB_LIST:
+				code += tab + "\t" + "var %s := []" % column["name"] + "\n"
+				params.push_back(column["name"])
+				types.push_back(type)
 			_:
 				pass
 
@@ -122,9 +128,11 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				code += "%s = Color()" % params[i]
 			CDB_TILE:
 				code += "%s = CastleDB.Tile.new()" % params[i]
+			CDB_LIST:
+				code += "%s = []" % params[i]
 			_:
 				# Check for reference
-				if str(CDB_REF) in type:
+				if str(CDB_REF) + ":" in type:
 					code += "%s = \"\"" % params[i]
 					continue
 				code += "%s = \"\"" % params[i]
@@ -157,13 +165,15 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 							code += "\"%s\"" % line[param]
 						CDB_COLOR:
 							code += "Color(%d)" % line[param]
+						CDB_LIST:
+							code += str(line[param])
 						CDB_TILE:
 							var img = Image.new()
 							img.load(path + "/" + line[param]["file"])
 							var stride = int(img.get_width() / line[param]["size"])
 							code += "CastleDB.Tile.new(\"%s\", %s, %s, %s, %s)" % [ line[param]["file"], line[param]["size"], line[param]["x"], line[param]["y"], stride ]
 						_:
-							if str(CDB_REF) in type:
+							if str(CDB_REF) + ":" in type:
 								var referenced_sheet_name = type
 								referenced_sheet_name.erase(0, 2)
 								code += "%s.%s" % [referenced_sheet_name, line[param]]
