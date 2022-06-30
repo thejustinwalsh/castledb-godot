@@ -1,4 +1,4 @@
-enum { CDB_ID, CDB_STRING, CDB_BOOL, CDB_INT, CDB_FLOAT, CDB_ENUM, CDB_COLOR, CDB_FILE, CDB_TILE, CDB_NIL }
+enum { CDB_ID, CDB_STRING, CDB_BOOL, CDB_INT, CDB_FLOAT, CDB_ENUM, CDB_REF, CDB_LIST, CDB_COLOR, CDB_FILE, CDB_TILE, CDB_NIL }
 
 static func get_column_type(column):
 	var type: String = str(column["typeStr"].to_int())
@@ -15,6 +15,10 @@ static func get_column_type(column):
 			return CDB_FLOAT
 		"5":
 			return CDB_ENUM
+		"6":
+			return CDB_REF
+		"8":
+			return CDB_LIST
 		"11":
 			return CDB_COLOR
 		"13":
@@ -90,6 +94,18 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				code += tab + "\t" + "var %s := CastleDB.Tile.new()" % column["name"] + "\n"
 				params.push_back(column["name"])
 				types.push_back(type)
+			CDB_REF:
+				var referenced_sheet_name = column["typeStr"]
+				referenced_sheet_name.erase(0, 2)
+				referenced_sheet_name = capitalize_name(referenced_sheet_name)
+				code += tab + "\t" + "var %s setget %s\n" % [column["name"], ", get_" + column["name"]]  # Actual reference
+				code += tab + "\t" + "var _%s := \"\"\n" % column["name"] # Reference key
+				params.push_back(column["name"])
+				types.push_back("%s:%s" % [str(type), referenced_sheet_name])
+			CDB_LIST:
+				code += tab + "\t" + "var %s := []" % column["name"] + "\n"
+				params.push_back(column["name"])
+				types.push_back(type)
 			_:
 				pass
 
@@ -113,11 +129,35 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 				code += "%s = Color()" % params[i]
 			CDB_TILE:
 				code += "%s = CastleDB.Tile.new()" % params[i]
+			CDB_LIST:
+				code += "%s = []" % params[i]
 			_:
+				# Check for reference
+				if str(CDB_REF) + ":" in str(type):
+					code += "_%s = \"\"" % params[i]
+					continue
 				code += "%s = \"\"" % params[i]
 	code += "):" + "\n"
-	for param in params:
-		code += tab +"\t\t" + "self.%s = %s" % [param, param] + "\n"
+	for i in params.size():
+		var param = params[i]
+		var type = types[i]
+		if str(CDB_REF) + ":" in str(type):
+			code += tab +"\t\t" + "self._%s = _%s" % [param, param] + "\n"
+		else:
+			code += tab +"\t\t" + "self.%s = %s" % [param, param] + "\n"
+	
+	# Reference getters
+	for column in columns:
+		var type = column["typeStr"]
+		if str(CDB_REF) + ":" in str(type):
+			var referenced_sheet_name = type
+			referenced_sheet_name.erase(0, 2)
+			referenced_sheet_name = capitalize_name(referenced_sheet_name)
+			
+			code += tab + "\t\n"
+			code += tab + "\tfunc get_%s() -> %s:\n" % [column["name"], referenced_sheet_name + "." + referenced_sheet_name + "Row"]
+			code += tab + "\t\treturn %s.new().get(_%s)\n" % [referenced_sheet_name, column["name"]] 
+	
 	code += tab + "\n"
 
 	# Data
@@ -144,12 +184,20 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 							code += "\"%s\"" % line[param]
 						CDB_COLOR:
 							code += "Color(%d)" % line[param]
+						CDB_LIST:
+							var json_string = JSON.print(line[param])
+							code += json_string
 						CDB_TILE:
 							var img = Image.new()
 							img.load(path + "/" + line[param]["file"])
 							var stride = int(img.get_width() / line[param]["size"])
 							code += "CastleDB.Tile.new(\"%s\", %s, %s, %s, %s)" % [ line[param]["file"], line[param]["size"], line[param]["x"], line[param]["y"], stride ]
 						_:
+							if str(CDB_REF) + ":" in str(type):
+								var referenced_sheet_name = type
+								referenced_sheet_name.erase(0, 2)
+								code += "%s.%s" % [referenced_sheet_name, line[param]]
+								continue
 							code += "\"%s\"" % line[param]
 			code += ")"
 			if i != lines.size() - 1:
@@ -180,3 +228,6 @@ static func gen_column_data(path:String, name:String, columns:Array, lines:Array
 	code += tab + "\t" + "return null" + "\n"
 
 	return code
+
+static func capitalize_name(var name) -> String:
+	return name.capitalize().replace(" ", "")

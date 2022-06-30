@@ -69,7 +69,7 @@ func import(source_file, save_path, options, r_platform_variants, r_gen_files):
 	if data.has("sheets"):
 		sheets = data["sheets"]
 		for sheet in sheets:
-			var name:String = sheet["name"].capitalize().replace(" ", "")
+			var name:String = Utils.capitalize_name(sheet["name"])
 			if name.find("@") >= 0: continue # TODO: Implement subclass list data
 
 			var keys = []
